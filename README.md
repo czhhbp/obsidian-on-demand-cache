@@ -39,6 +39,13 @@ Most similar plugins **permanently rewrite** the links in your notes (changing `
 - **The cache folder must be a non-hidden directory**: Obsidian does not index hidden directories (those starting with `.`), which would make `app://` resource paths fail to load. Therefore the default is `cache/` (non-hidden).
 - **Render replacement never modifies the source**: Replacement only happens on the rendered DOM; the note file content is always unchanged.
 
+## Installation
+
+Install from the Obsidian community directory:
+
+1. Open Obsidian → Settings → Community plugins → Browse.
+2. Search for "On-Demand Cache" and click Install, then Enable.
+
 ## Usage
 
 ### Automatic caching (default)

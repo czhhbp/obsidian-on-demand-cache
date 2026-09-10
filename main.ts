@@ -13,6 +13,7 @@ import {
 	Modal,
 	getLanguage,
 	MarkdownPostProcessorContext,
+	SettingDefinitionItem,
 } from "obsidian";
 
 // ==================== 类型与常量 ====================
@@ -1096,6 +1097,135 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: OnDemandCachePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	/**
+	 * 声明式设置定义（Obsidian 1.13.0+），让设置项出现在设置搜索中。
+	 */
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		return [
+			{
+				name: t("文件类别过滤模式", "File type filter mode"),
+				desc: t("白名单：只缓存列表中的后缀；黑名单：不缓存列表中的后缀", "Whitelist: only cache listed extensions; Blacklist: skip listed extensions"),
+				control: {
+					key: "filterMode",
+					type: "dropdown",
+					options: {
+						whitelist: t("白名单（只缓存以下类别）", "Whitelist (only cache these)"),
+						blacklist: t("黑名单（不缓存以下类别）", "Blacklist (skip these)"),
+					},
+				},
+			},
+			{
+				name: t("文件后缀列表", "File extensions"),
+				desc: t("用逗号分隔，例如：png,jpg,mp4,pdf,docx", "Comma-separated, e.g. png,jpg,mp4,pdf,docx"),
+				control: {
+					key: "fileExtensions",
+					type: "textarea",
+					placeholder: "png,jpg,mp4,pdf,docx",
+					rows: 4,
+				},
+			},
+			{
+				name: t("单个附件最大大小 (MB)", "Max attachment size (MB)"),
+				desc: t("超过此大小的附件不会被缓存，0 表示不限制", "Attachments larger than this won't be cached; 0 means no limit"),
+				control: {
+					key: "maxFileSizeMB",
+					type: "text",
+					placeholder: "50",
+				},
+			},
+			{
+				name: t("缓存目录", "Cache folder"),
+				desc: t("缓存文件存放的文件夹（相对于 vault 根目录，建议避免同步此目录）", "Folder for cached files (relative to vault root; avoid syncing this folder)"),
+				control: {
+					key: "cacheFolder",
+					type: "text",
+					placeholder: "cache",
+				},
+			},
+			{
+				name: t("启动时自动清理", "Auto-clean on startup"),
+				desc: t("启动时自动删除未被文档引用的缓存文件", "Automatically delete cache files not referenced by any note on startup"),
+				control: {
+					key: "cleanupOnStartup",
+					type: "toggle",
+				},
+			},
+			{
+				name: t("渲染时使用缓存", "Use cache when rendering"),
+				desc: t("阅读/预览时，将网络链接替换为本地缓存文件（文档内容不变）", "When reading/previewing, replace remote links with local cache files (note content stays unchanged)"),
+				control: {
+					key: "enableRenderReplace",
+					type: "toggle",
+				},
+			},
+			{
+				name: t("诊断日志", "Diagnostic logging"),
+				desc: t("开启后记录详细日志到缓存目录的 debug.log（用于排查问题，默认关闭以避免性能开销）", "When enabled, writes detailed logs to debug.log in the cache folder (for troubleshooting; off by default to avoid overhead)"),
+				control: {
+					key: "debugMode",
+					type: "toggle",
+				},
+			},
+			{
+				type: "group",
+				heading: t("操作", "Actions"),
+				items: [
+					{
+						name: t("一键缓存所有附件", "Cache all attachments"),
+						desc: t("遍历所有文档并缓存其中的网络附件", "Scan all notes and cache their remote attachments"),
+						action: () => {
+							void this.plugin.cacheAllAttachments();
+						},
+					},
+					{
+						name: t("清理未使用缓存", "Clean up unused cache"),
+						desc: t("删除未被任何文档引用的缓存文件", "Delete cache files not referenced by any note"),
+						action: () => {
+							void this.plugin.cleanupUnusedCache();
+						},
+					},
+					{
+						name: t("清空缓存", "Clear cache"),
+						desc: t("删除所有缓存文件并重置缓存索引", "Delete all cache files and reset the cache index"),
+						action: () => {
+							void this.plugin.clearAllCache();
+						},
+					},
+				],
+			},
+		];
+	}
+
+	/**
+	 * 读取设置值。fileExtensions 是数组，需要转换为逗号分隔字符串。
+	 */
+	getControlValue(key: string): unknown {
+		if (key === "fileExtensions") {
+			return this.plugin.settings.fileExtensions.join(",");
+		}
+		return (this.plugin.settings as unknown as Record<string, unknown>)[key];
+	}
+
+	/**
+	 * 写入设置值。fileExtensions 需要从逗号分隔字符串转换回数组。
+	 */
+	setControlValue(key: string, value: unknown): void | Promise<void> {
+		if (key === "fileExtensions") {
+			this.plugin.settings.fileExtensions = String(value)
+				.split(",")
+				.map((s) => normalizeExt(s.trim()))
+				.filter((s) => s.length > 0);
+		} else if (key === "maxFileSizeMB") {
+			const num = parseFloat(String(value));
+			this.plugin.settings.maxFileSizeMB = isNaN(num) ? 0 : num;
+		} else if (key === "cacheFolder") {
+			this.plugin.settings.cacheFolder = String(value).trim() || "cache";
+		} else {
+			(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
+		}
+		return this.plugin.saveSettings();
 	}
 
 	display(): void {
