@@ -8,10 +8,11 @@ import {
 	normalizePath,
 	requestUrl,
 	MarkdownView,
-	MarkdownRenderer,
 	Component,
 	FileSystemAdapter,
 	Modal,
+	getLanguage,
+	MarkdownPostProcessorContext,
 } from "obsidian";
 
 // ==================== 类型与常量 ====================
@@ -46,9 +47,6 @@ const DEFAULT_SETTINGS: OnDemandCacheSettings = {
 	enableRenderReplace: true,
 	debugMode: false,
 };
-
-// 默认支持的文件类别（用于设置界面展示）
-const DEFAULT_EXTENSIONS = DEFAULT_SETTINGS.fileExtensions;
 
 // 缓存索引文件名
 const INDEX_FILE = "cache-index.json";
@@ -134,7 +132,7 @@ function simpleHash(str: string): string {
 /** 检测 Obsidian 当前界面语言是否为中文 */
 function isChinese(): boolean {
 	try {
-		const lang = localStorage.getItem("language");
+		const lang = getLanguage();
 		if (lang) return lang.toLowerCase().startsWith("zh");
 	} catch { /* ignore */ }
 	// 回退：根据浏览器语言判断
@@ -222,7 +220,7 @@ export default class OnDemandCachePlugin extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) => {
 				if (file) {
-					this.cacheFile(file);
+					void this.cacheFile(file);
 				}
 			})
 		);
@@ -251,13 +249,13 @@ export default class OnDemandCachePlugin extends Plugin {
 		// 启动时清理
 		if (this.settings.cleanupOnStartup) {
 			this.app.workspace.onLayoutReady(() => {
-				this.cleanupUnusedCache();
+				void this.cleanupUnusedCache();
 			});
 		}
 
 		// 启动诊断日志
 		this.app.workspace.onLayoutReady(() => {
-			this.logStartup();
+			void this.logStartup();
 		});
 	}
 
@@ -414,15 +412,17 @@ export default class OnDemandCachePlugin extends Plugin {
 			text: content,
 			cls: "debug-log-content",
 		});
-		pre.style.whiteSpace = "pre-wrap";
-		pre.style.wordBreak = "break-all";
-		pre.style.maxHeight = "55vh";
-		pre.style.overflowY = "auto";
-		pre.style.background = "var(--background-secondary)";
-		pre.style.padding = "12px";
-		pre.style.borderRadius = "6px";
-		pre.style.fontSize = "12px";
-		pre.style.fontFamily = "monospace";
+		pre.setCssStyles({
+			whiteSpace: "pre-wrap",
+			wordBreak: "break-all",
+			maxHeight: "55vh",
+			overflowY: "auto",
+			background: "var(--background-secondary)",
+			padding: "12px",
+			borderRadius: "6px",
+			fontSize: "12px",
+			fontFamily: "monospace",
+		});
 
 		new Setting(modal.contentEl)
 			.setName(t("复制全部日志", "Copy all logs"))
@@ -505,7 +505,7 @@ export default class OnDemandCachePlugin extends Plugin {
 	}
 
 	/** 启动插件诊断 */
-	private logStartup() {
+	private async logStartup() {
 		const adapter = this.app.vault.adapter;
 		this.logDiag("========== 插件启动诊断 ==========");
 		this.logDiag(`adapter 类型: ${adapter.constructor.name}（isFileSystem: ${adapter instanceof FileSystemAdapter}）`);
@@ -519,14 +519,14 @@ export default class OnDemandCachePlugin extends Plugin {
 			const testPath = this.getLocalResourcePath(sample.file);
 			this.logDiag(`样例缓存路径生成: ${sample.file} → ${testPath}`);
 			this.probeResourcePath(testPath, "样例缓存");
-			adapter.exists(sample.file).then((exists: boolean) => {
-				this.logDiag(`样例缓存文件是否存在: ${exists}`);
-				if (exists) {
-					adapter.stat(sample.file).then((st: any) => {
-						this.logDiag(`样例缓存文件大小: ${st.size} 字节（索引记录 ${sample.size}）`);
-					});
+			const exists = await adapter.exists(sample.file);
+			this.logDiag(`样例缓存文件是否存在: ${exists}`);
+			if (exists) {
+				const st = await adapter.stat(sample.file);
+				if (st) {
+					this.logDiag(`样例缓存文件大小: ${st.size} 字节（索引记录 ${sample.size}）`);
 				}
-			});
+			}
 		}
 	}
 
@@ -680,7 +680,7 @@ export default class OnDemandCachePlugin extends Plugin {
 	 * 处理去重：相同内容（哈希相同）只缓存一份。
 	 */
 	async cacheUrl(url: string): Promise<CacheEntry | null> {
-		const { shouldCache, reason, ext } = this.shouldCache(url);
+		const { shouldCache, ext } = this.shouldCache(url);
 		if (!shouldCache) {
 			return null;
 		}
@@ -699,7 +699,6 @@ export default class OnDemandCachePlugin extends Plugin {
 			if (this.settings.maxFileSizeMB > 0) {
 				const maxBytes = this.settings.maxFileSizeMB * 1024 * 1024;
 				if (size > maxBytes) {
-					console.log(`On-Demand Cache: 跳过 ${url}（超过大小限制 ${this.settings.maxFileSizeMB}MB）`);
 					return null;
 				}
 			}
@@ -792,7 +791,6 @@ export default class OnDemandCachePlugin extends Plugin {
 			}
 
 			if (cachedCount > 0) {
-				console.log(`On-Demand Cache: ${file.path} 缓存了 ${cachedCount} 个附件`);
 				// 如果当前打开的是该文件，触发重新渲染以应用缓存
 				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (activeView && activeView.file && activeView.file.path === file.path) {
@@ -889,7 +887,6 @@ export default class OnDemandCachePlugin extends Plugin {
 			// 找出未使用的缓存条目
 			const unused = this.index.entries.filter((e) => !usedUrls.has(e.url));
 			if (unused.length === 0) {
-				console.log("On-Demand Cache: 没有未使用的缓存");
 				new Notice(t("清理完成：没有未使用的缓存文件", "Cleanup done: no unused cache files"));
 				return;
 			}
@@ -923,7 +920,6 @@ export default class OnDemandCachePlugin extends Plugin {
 			}
 
 			await this.saveIndex();
-			console.log(`On-Demand Cache: 清理完成，删除 ${deleted} 个缓存文件`);
 			if (failed > 0) {
 				new Notice(t(`清理完成：删除 ${deleted} 个文件，${failed} 个删除失败`, `Cleanup done: deleted ${deleted} files, ${failed} failed`));
 			} else {
@@ -943,7 +939,6 @@ export default class OnDemandCachePlugin extends Plugin {
 	async clearAllCache() {
 		try {
 			const adapter = this.app.vault.adapter;
-			const folder = this.settings.cacheFolder;
 			let deleted = 0;
 
 			// 删除所有缓存文件
@@ -962,7 +957,6 @@ export default class OnDemandCachePlugin extends Plugin {
 			this.index.entries = [];
 			await this.saveIndex();
 
-			console.log(`On-Demand Cache: 清空缓存完成，删除 ${deleted} 个文件`);
 			new Notice(t(`已清空缓存，删除 ${deleted} 个文件`, `Cache cleared, deleted ${deleted} files`));
 		} catch (e) {
 			console.error("On-Demand Cache: 清空缓存失败", e);
@@ -1013,7 +1007,7 @@ export default class OnDemandCachePlugin extends Plugin {
 		return undefined;
 	}
 
-	private replaceRemoteWithCache(el: HTMLElement, ctx: any) {
+	private replaceRemoteWithCache(el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		if (!this.settings.enableRenderReplace) return;
 
 		// 首次调用时记录（仅 debugMode 开启时执行诊断，避免额外开销）
@@ -1054,7 +1048,7 @@ export default class OnDemandCachePlugin extends Plugin {
 				// 用隐藏 Image 实测本地路径是否可加载（这是最终裁决）
 				this.probeResourcePath(localPath, "实际渲染");
 				// 检查文件是否存在于磁盘
-				this.app.vault.adapter.exists(entry.file).then((exists: boolean) => {
+				void this.app.vault.adapter.exists(entry.file).then((exists: boolean) => {
 					this.logDiag(`[磁盘检查] ${entry.file} 存在=${exists}`);
 				});
 			}
@@ -1107,7 +1101,7 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: t("On-Demand Cache 设置", "On-Demand Cache Settings") });
+		new Setting(containerEl).setHeading().setName(t("On-Demand Cache 设置", "On-Demand Cache Settings"));
 
 		// 文件类别过滤模式
 		new Setting(containerEl)
@@ -1214,7 +1208,7 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 			});
 
 		// 操作按钮
-		containerEl.createEl("h3", { text: t("操作", "Actions") });
+		new Setting(containerEl).setHeading().setName(t("操作", "Actions"));
 
 		new Setting(containerEl)
 			.setName(t("一键缓存所有附件", "Cache all attachments"))
@@ -1224,7 +1218,7 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 					.setButtonText(t("立即缓存", "Cache now"))
 					.setCta()
 					.onClick(() => {
-						this.plugin.cacheAllAttachments();
+						void this.plugin.cacheAllAttachments();
 					});
 			});
 
@@ -1236,7 +1230,7 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 					.setButtonText(t("立即清理", "Clean now"))
 					.setCta()
 					.onClick(() => {
-						this.plugin.cleanupUnusedCache();
+						void this.plugin.cleanupUnusedCache();
 					});
 			});
 
@@ -1248,7 +1242,7 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 					.setButtonText(t("清空缓存", "Clear cache"))
 					.setCta()
 					.onClick(() => {
-						this.plugin.clearAllCache();
+						void this.plugin.clearAllCache();
 					});
 			});
 	}
