@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Build artifacts (main.js is committed for release, but keep source maps out)
+*.map
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

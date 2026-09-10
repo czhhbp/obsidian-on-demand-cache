@@ -1,0 +1,89 @@
+# On-Demand Cache
+
+按需持久缓存网络附件（图片、视频、音频、PDF、压缩包等）。打开笔记时才下载，渲染时透明地使用本地副本而非网络文件，同时保持笔记中的原始链接不变。
+
+On-demand persistent cache for remote attachments (images, videos, audio, PDFs, archives). Downloads only when you open a note, then transparently serves the local copy instead of the network file while keeping your original links unchanged.
+
+## 核心原理 / How it works
+
+- **文档内容不变 / Original links preserved**：笔记中的网络链接（`https://...`）始终保持原样，同步时只同步链接文本，不同步具体文件。
+- **随用随下载 / On-demand download**：打开笔记时才下载其中的网络附件，不主动批量下载。
+- **本地持久缓存 / Persistent local cache**：附件下载到 `offline-cache/` 目录（已加入 `.gitignore`，不会被同步）。
+- **渲染时用本地文件 / Serve local copy**：阅读/预览时，自动将网络链接替换为本地缓存文件路径，实现离线访问。
+- **多设备自动补缓存 / Auto-fill on other devices**：在其他设备打开笔记时，若本地没有缓存，自动下载。
+
+## 与"下载并替换链接"类插件的区别 / Difference from "download & replace" plugins
+
+大多数同类插件会**永久改写**笔记中的链接（把 `https://...` 改成本地路径）。本插件**从不修改笔记内容**，只在渲染时临时用本地文件，原文始终保留网络链接。因此：
+
+- 笔记可安全跨设备同步（只同步链接文本，不同步大文件）。
+- 换设备后自动按需补缓存。
+- 随时可回退到网络加载，无副作用。
+
+## 实现原理 / Implementation
+
+### 关键处理步骤 / Key processing steps
+
+1. **链接提取 / Link extraction**：打开笔记时，用正则从 Markdown 内容中提取所有网络链接，支持 Markdown 图片 `![alt](url)`、Markdown 链接 `[text](url)`、HTML 标签 `<img>`/`<audio>`/`<video>`/`<source>` 以及裸 URL。
+
+2. **缓存判断 / Cache decision**：对每个链接判断是否应缓存——是否已缓存、是否有文件后缀、是否符合白名单/黑名单、是否超过大小限制。
+
+3. **下载与去重 / Download & dedup**：通过 `requestUrl` 下载文件，计算内容哈希去重（相同内容只存一份），写入 `offline-cache/` 目录，并更新缓存索引 `cache-index.json`。
+
+4. **渲染替换 / Render replacement**：通过 Markdown 后处理器 + 全局 `MutationObserver` 双重机制，在渲染时将 `<img>` 等标签的 `src` 从网络链接替换为本地 `app://` 资源路径（`getResourcePath`），实现离线显示。
+
+5. **清理 / Cleanup**：启动时扫描所有笔记，删除未被任何笔记引用的缓存文件。
+
+### 关键设计 / Key design decisions
+
+- **缓存目录必须是非隐藏目录**：Obsidian 不索引以 `.` 开头的隐藏目录，会导致 `app://` 资源路径无法加载。因此默认使用 `offline-cache/`（非隐藏），并建议在 Obsidian 设置中将其加入"排除的文件"以隐藏。
+- **渲染替换不修改原文**：替换只发生在渲染层的 DOM 上，笔记文件内容始终不变。
+
+## 使用方法 / Usage
+
+### 自动缓存（默认行为）/ Automatic caching (default)
+
+**打开笔记时自动缓存**：当你打开一篇包含网络附件的笔记时，插件会自动下载其中的附件到本地缓存。之后即使断网，也能正常显示。
+
+> ⚠️ **重要**：缓存**只在打开笔记时触发**。如果你在**编辑状态下**新插入一个网络附件（例如粘贴一张网络图片链接），插件**不会**立即缓存它。你需要**重新打开该笔记**（或切换到其他笔记再切回来），插件才会检测并缓存新插入的附件。
+
+### 命令 / Commands
+
+- **缓存所有文档中的网络附件 / Cache all remote attachments**：遍历所有 Markdown 文档并缓存。
+- **缓存当前文档中的网络附件 / Cache remote attachments in current note**：只缓存当前打开的文档。
+- **清理未使用的缓存文件 / Clean up unused cache files**：删除未被引用的缓存。
+
+### 设置面板 / Settings
+
+在 Obsidian 设置 → 社区插件 → On-Demand Cache 中可配置（界面语言随 Obsidian 自动切换中英文）：
+
+| 设置项 / Setting | 说明 / Description |
+|--------|------|
+| 文件类别过滤模式 / Filter mode | 白名单 / 黑名单 |
+| 文件后缀列表 / File extensions | 逗号分隔，如 `png,jpg,mp4,pdf,zip` |
+| 单个附件最大大小 / Max size | 单位 MB，0 表示不限制 |
+| 缓存目录 / Cache folder | 默认 `offline-cache` |
+| 启动时自动清理 / Auto-clean | 开关 |
+| 渲染时使用缓存 / Use cache | 开关 |
+| 诊断日志 / Diagnostic logging | 排查问题时开启，默认关闭 |
+
+## 缓存目录说明 / Cache folder
+
+缓存文件存放在 `offline-cache/` 目录。该目录已加入 `.gitignore`，确保同步时不会上传具体文件。
+
+> 注意：缓存目录**不能**以 `.` 开头（隐藏目录）。Obsidian 不索引隐藏目录，会导致 `app://` 资源路径无法加载图片。若希望缓存目录不出现在文件列表中，请在 Obsidian 设置 → 文件与链接 → 排除的文件 中添加 `offline-cache`。
+
+## 支持的链接形式 / Supported link formats
+
+- Markdown 图片：`![alt](https://...)`
+- Markdown 链接：`[text](https://...)`
+- HTML 标签：`<img src="https://...">`、`<audio>`、`<video>`、`<source>`
+- 裸 URL：`https://...`
+
+## 开发 / Development
+
+```bash
+npm install
+npm run build   # 编译
+npm run dev     # 开发模式（监听）
+```
