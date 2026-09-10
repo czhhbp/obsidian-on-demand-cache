@@ -80,6 +80,7 @@
 
 - Markdown 图片：`![alt](https://...)`
 - Markdown 链接：`[text](https://...)`
+- Obsidian wiki 链接：`![[https://...]]`、`[[https://...]]`、`[[https://...|别名]]`
 - HTML 标签：`<img src="https://...">`、`<audio>`、`<video>`、`<source>`
 - 裸 URL：`https://...`
 

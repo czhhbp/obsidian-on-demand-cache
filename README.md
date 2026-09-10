@@ -80,6 +80,7 @@ Cache files are stored in the `cache/` folder. This folder should be **excluded 
 
 - Markdown image: `![alt](https://...)`
 - Markdown link: `[text](https://...)`
+- Obsidian wiki link: `![[https://...]]`, `[[https://...]]`, `[[https://...|alias]]`
 - HTML tags: `<img src="https://...">`, `<audio>`, `<video>`, `<source>`
 - Bare URL: `https://...`
 

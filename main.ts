@@ -581,7 +581,7 @@ export default class OnDemandCachePlugin extends Plugin {
 
 	/**
 	 * 从文档内容中提取所有网络链接。
-	 * 支持 Markdown 图片、链接、HTML img/audio/video/source、以及裸 URL。
+	 * 支持 Markdown 图片、链接、HTML img/audio/video/source、裸 URL、以及 Obsidian wiki 链接（双中括号）。
 	 */
 	extractRemoteLinks(content: string): string[] {
 		const urls = new Set<string>();
@@ -611,7 +611,17 @@ export default class OnDemandCachePlugin extends Plugin {
 			urls.add(m[1]);
 		}
 
-		// 5. 裸 URL（http/https）
+		// 5. Obsidian wiki 链接（双中括号）
+		// 形式：![[https://...]]、[[https://...]]、[[https://...|别名]]、![[https://...|300]]
+		const wikiLink = /!?\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
+		while ((m = wikiLink.exec(content)) !== null) {
+			const target = m[1].trim();
+			if (/^https?:\/\//i.test(target)) {
+				urls.add(target);
+			}
+		}
+
+		// 6. 裸 URL（http/https）
 		const bareUrl = /https?:\/\/[^\s<>"')\]]+/g;
 		while ((m = bareUrl.exec(content)) !== null) {
 			urls.add(m[0]);
