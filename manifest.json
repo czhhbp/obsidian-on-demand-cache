@@ -1,7 +1,7 @@
 {
 	"id": "on-demand-cache",
 	"name": "On-Demand Cache",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"minAppVersion": "1.8.7",
 	"description": "Cache remote attachments on demand. Downloads files only when you open a note, then serves the local copy instead of the network file while keeping your original links unchanged.",
 	"author": "czhhbp",
