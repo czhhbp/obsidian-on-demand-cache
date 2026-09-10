@@ -274,7 +274,7 @@ export default class OnDemandCachePlugin extends Plugin {
 			for (const m of mutations) {
 				if (m.type !== "childList") continue;
 				for (const node of Array.from(m.addedNodes)) {
-					if (!(node instanceof HTMLElement)) continue;
+					if (!node.instanceOf(HTMLElement)) continue;
 					// 新增节点本身是 img，或包含 img
 					if (node.tagName === "IMG") {
 						this.tryReplaceImg(node as HTMLImageElement);
@@ -339,7 +339,7 @@ export default class OnDemandCachePlugin extends Plugin {
 			this.logLines.splice(0, this.logLines.length - 500);
 		}
 		this.pendingLog.push(line);
-		console.log("[OnDemandCache]", msg);
+		console.debug("[OnDemandCache]", msg);
 		this.flushLog();
 	}
 
@@ -533,7 +533,8 @@ export default class OnDemandCachePlugin extends Plugin {
 	// ==================== 设置加载/保存 ====================
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const data = (await this.loadData()) as Partial<OnDemandCacheSettings> | null;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
 	}
 
 	async saveSettings() {
@@ -552,7 +553,7 @@ export default class OnDemandCachePlugin extends Plugin {
 			const indexPath = this.getIndexPath();
 			if (await adapter.exists(indexPath)) {
 				const raw = await adapter.read(indexPath);
-				this.index = JSON.parse(raw);
+				this.index = JSON.parse(raw) as CacheIndex;
 				if (!this.index.entries) this.index.entries = [];
 			}
 		} catch (e) {
@@ -1135,8 +1136,10 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 					});
 				text.inputEl.rows = 4;
 				text.inputEl.cols = 60;
-				text.inputEl.style.width = "100%";
-				text.inputEl.style.minHeight = "80px";
+				text.inputEl.setCssStyles({
+					width: "100%",
+					minHeight: "80px",
+				});
 			});
 
 		// 最大大小
