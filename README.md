@@ -1,89 +1,89 @@
 # On-Demand Cache
 
-按需持久缓存网络附件（图片、视频、音频、PDF、压缩包等）。打开笔记时才下载，渲染时透明地使用本地副本而非网络文件，同时保持笔记中的原始链接不变。
+On-demand persistent cache for remote attachments (images, videos, audio, PDFs, archives). Downloads files only when you open a note, then transparently serves the local copy instead of the network file while keeping your original links unchanged.
 
-On-demand persistent cache for remote attachments (images, videos, audio, PDFs, archives). Downloads only when you open a note, then transparently serves the local copy instead of the network file while keeping your original links unchanged.
+[中文文档 / Chinese documentation](README.zh-CN.md)
 
-## 核心原理 / How it works
+## How it works
 
-- **文档内容不变 / Original links preserved**：笔记中的网络链接（`https://...`）始终保持原样，同步时只同步链接文本，不同步具体文件。
-- **随用随下载 / On-demand download**：打开笔记时才下载其中的网络附件，不主动批量下载。
-- **本地持久缓存 / Persistent local cache**：附件下载到 `offline-cache/` 目录（已加入 `.gitignore`，不会被同步）。
-- **渲染时用本地文件 / Serve local copy**：阅读/预览时，自动将网络链接替换为本地缓存文件路径，实现离线访问。
-- **多设备自动补缓存 / Auto-fill on other devices**：在其他设备打开笔记时，若本地没有缓存，自动下载。
+- **Original links preserved**: Network links (`https://...`) in your notes stay untouched. Syncing only syncs the link text, never the actual files.
+- **On-demand download**: Attachments are downloaded only when you open a note, not proactively in bulk.
+- **Persistent local cache**: Files are stored in the `offline-cache/` folder (added to `.gitignore`, so they are never synced).
+- **Serve local copy**: When reading/previewing, remote links are transparently replaced with local cache paths for offline access.
+- **Auto-fill on other devices**: When you open a note on another device, missing attachments are downloaded automatically.
 
-## 与"下载并替换链接"类插件的区别 / Difference from "download & replace" plugins
+## Difference from "download & replace" plugins
 
-大多数同类插件会**永久改写**笔记中的链接（把 `https://...` 改成本地路径）。本插件**从不修改笔记内容**，只在渲染时临时用本地文件，原文始终保留网络链接。因此：
+Most similar plugins **permanently rewrite** the links in your notes (changing `https://...` to a local path). This plugin **never modifies your note content** — it only temporarily uses local files at render time, keeping the original network links intact. As a result:
 
-- 笔记可安全跨设备同步（只同步链接文本，不同步大文件）。
-- 换设备后自动按需补缓存。
-- 随时可回退到网络加载，无副作用。
+- Notes sync safely across devices (only link text is synced, not large files).
+- Missing attachments are re-cached on demand after switching devices.
+- You can always fall back to network loading with no side effects.
 
-## 实现原理 / Implementation
+## Implementation
 
-### 关键处理步骤 / Key processing steps
+### Key processing steps
 
-1. **链接提取 / Link extraction**：打开笔记时，用正则从 Markdown 内容中提取所有网络链接，支持 Markdown 图片 `![alt](url)`、Markdown 链接 `[text](url)`、HTML 标签 `<img>`/`<audio>`/`<video>`/`<source>` 以及裸 URL。
+1. **Link extraction**: When a note is opened, all network links are extracted from the Markdown content using regex, supporting Markdown images `![alt](url)`, Markdown links `[text](url)`, HTML tags `<img>`/`<audio>`/`<video>`/`<source>`, and bare URLs.
 
-2. **缓存判断 / Cache decision**：对每个链接判断是否应缓存——是否已缓存、是否有文件后缀、是否符合白名单/黑名单、是否超过大小限制。
+2. **Cache decision**: Each link is checked against whether it should be cached — already cached, has a file extension, matches the whitelist/blacklist, and is within the size limit.
 
-3. **下载与去重 / Download & dedup**：通过 `requestUrl` 下载文件，计算内容哈希去重（相同内容只存一份），写入 `offline-cache/` 目录，并更新缓存索引 `cache-index.json`。
+3. **Download & dedup**: Files are downloaded via `requestUrl`, deduplicated by content hash (identical content is stored only once), written to the `offline-cache/` folder, and recorded in the cache index `cache-index.json`.
 
-4. **渲染替换 / Render replacement**：通过 Markdown 后处理器 + 全局 `MutationObserver` 双重机制，在渲染时将 `<img>` 等标签的 `src` 从网络链接替换为本地 `app://` 资源路径（`getResourcePath`），实现离线显示。
+4. **Render replacement**: A Markdown post-processor combined with a global `MutationObserver` replaces the `src` of `<img>` and other tags from the network link to a local `app://` resource path (`getResourcePath`) at render time, enabling offline display.
 
-5. **清理 / Cleanup**：启动时扫描所有笔记，删除未被任何笔记引用的缓存文件。
+5. **Cleanup**: On startup, all notes are scanned and cache files no longer referenced by any note are deleted.
 
-### 关键设计 / Key design decisions
+### Key design decisions
 
-- **缓存目录必须是非隐藏目录**：Obsidian 不索引以 `.` 开头的隐藏目录，会导致 `app://` 资源路径无法加载。因此默认使用 `offline-cache/`（非隐藏），并建议在 Obsidian 设置中将其加入"排除的文件"以隐藏。
-- **渲染替换不修改原文**：替换只发生在渲染层的 DOM 上，笔记文件内容始终不变。
+- **The cache folder must be a non-hidden directory**: Obsidian does not index hidden directories (those starting with `.`), which would make `app://` resource paths fail to load. Therefore the default is `offline-cache/` (non-hidden).
+- **Render replacement never modifies the source**: Replacement only happens on the rendered DOM; the note file content is always unchanged.
 
-## 使用方法 / Usage
+## Usage
 
-### 自动缓存（默认行为）/ Automatic caching (default)
+### Automatic caching (default)
 
-**打开笔记时自动缓存**：当你打开一篇包含网络附件的笔记时，插件会自动下载其中的附件到本地缓存。之后即使断网，也能正常显示。
+**Cache on open**: When you open a note containing remote attachments, the plugin automatically downloads them to the local cache. They remain visible even after going offline.
 
-> ⚠️ **重要**：缓存**只在打开笔记时触发**。如果你在**编辑状态下**新插入一个网络附件（例如粘贴一张网络图片链接），插件**不会**立即缓存它。你需要**重新打开该笔记**（或切换到其他笔记再切回来），插件才会检测并缓存新插入的附件。
+> ⚠️ **Important**: Caching is triggered **only when a note is opened**. If you insert a new remote attachment **while editing** (for example, pasting a network image link), the plugin will **not** cache it immediately. You need to **reopen the note** (or switch to another note and back) for the plugin to detect and cache the newly inserted attachment.
 
-### 命令 / Commands
+### Commands
 
-- **缓存所有文档中的网络附件 / Cache all remote attachments**：遍历所有 Markdown 文档并缓存。
-- **缓存当前文档中的网络附件 / Cache remote attachments in current note**：只缓存当前打开的文档。
-- **清理未使用的缓存文件 / Clean up unused cache files**：删除未被引用的缓存。
+- **Cache all remote attachments**: Scan all Markdown notes and cache their remote attachments.
+- **Cache remote attachments in current note**: Cache only the currently open note.
+- **Clean up unused cache files**: Delete cache files that are no longer referenced.
 
-### 设置面板 / Settings
+### Settings
 
-在 Obsidian 设置 → 社区插件 → On-Demand Cache 中可配置（界面语言随 Obsidian 自动切换中英文）：
+Configure in Obsidian Settings → Community plugins → On-Demand Cache (the UI language switches between English and Chinese automatically based on Obsidian's language):
 
-| 设置项 / Setting | 说明 / Description |
+| Setting | Description |
 |--------|------|
-| 文件类别过滤模式 / Filter mode | 白名单 / 黑名单 |
-| 文件后缀列表 / File extensions | 逗号分隔，如 `png,jpg,mp4,pdf,zip` |
-| 单个附件最大大小 / Max size | 单位 MB，0 表示不限制 |
-| 缓存目录 / Cache folder | 默认 `offline-cache` |
-| 启动时自动清理 / Auto-clean | 开关 |
-| 渲染时使用缓存 / Use cache | 开关 |
-| 诊断日志 / Diagnostic logging | 排查问题时开启，默认关闭 |
+| Filter mode | Whitelist / Blacklist |
+| File extensions | Comma-separated, e.g. `png,jpg,mp4,pdf,zip` |
+| Max size | In MB, 0 means no limit |
+| Cache folder | Default `offline-cache` |
+| Auto-clean | Toggle |
+| Use cache | Toggle |
+| Diagnostic logging | Enable for troubleshooting, off by default |
 
-## 缓存目录说明 / Cache folder
+## Cache folder
 
-缓存文件存放在 `offline-cache/` 目录。该目录已加入 `.gitignore`，确保同步时不会上传具体文件。
+Cache files are stored in the `offline-cache/` folder. This folder is added to `.gitignore`, so the actual files are never synced.
 
-> 注意：缓存目录**不能**以 `.` 开头（隐藏目录）。Obsidian 不索引隐藏目录，会导致 `app://` 资源路径无法加载图片。若希望缓存目录不出现在文件列表中，请在 Obsidian 设置 → 文件与链接 → 排除的文件 中添加 `offline-cache`。
+> Note: The cache folder **cannot** start with `.` (hidden directory). Obsidian does not index hidden directories, which would make `app://` resource paths fail to load images.
 
-## 支持的链接形式 / Supported link formats
+## Supported link formats
 
-- Markdown 图片：`![alt](https://...)`
-- Markdown 链接：`[text](https://...)`
-- HTML 标签：`<img src="https://...">`、`<audio>`、`<video>`、`<source>`
-- 裸 URL：`https://...`
+- Markdown image: `![alt](https://...)`
+- Markdown link: `[text](https://...)`
+- HTML tags: `<img src="https://...">`, `<audio>`, `<video>`, `<source>`
+- Bare URL: `https://...`
 
-## 开发 / Development
+## Development
 
 ```bash
 npm install
-npm run build   # 编译
-npm run dev     # 开发模式（监听）
+npm run build   # build
+npm run dev     # dev mode (watch)
 ```
