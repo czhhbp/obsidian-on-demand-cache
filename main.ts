@@ -39,10 +39,9 @@ const DEFAULT_SETTINGS: OnDemandCacheSettings = {
 		"mp4", "webm", "mov", "mkv", "avi",
 		"mp3", "wav", "ogg", "m4a", "flac",
 		"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-		"zip", "rar", "7z", "tar", "gz",
 	],
 	maxFileSizeMB: 50,
-	cacheFolder: "offline-cache",
+	cacheFolder: "cache",
 	cleanupOnStartup: true,
 	enableRenderReplace: true,
 	debugMode: false,
@@ -1154,13 +1153,13 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 		// 缓存目录
 		new Setting(containerEl)
 			.setName(t("缓存目录", "Cache folder"))
-			.setDesc(t("缓存文件存放的文件夹（相对于 vault 根目录，建议加入 .gitignore）", "Folder for cached files (relative to vault root; add to .gitignore)"))
+			.setDesc(t("缓存文件存放的文件夹（相对于 vault 根目录，建议避免同步此目录）", "Folder for cached files (relative to vault root; avoid syncing this folder)"))
 			.addText((text) => {
 				text
-					.setPlaceholder("offline-cache")
+					.setPlaceholder("cache")
 					.setValue(this.plugin.settings.cacheFolder)
 					.onChange(async (value) => {
-						this.plugin.settings.cacheFolder = value.trim() || "offline-cache";
+						this.plugin.settings.cacheFolder = value.trim() || "cache";
 						await this.plugin.saveSettings();
 					});
 			});
