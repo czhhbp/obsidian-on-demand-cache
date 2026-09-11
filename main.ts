@@ -167,6 +167,7 @@ export default class OnDemandCachePlugin extends Plugin {
 	private firstRenderLogged = false;
 
 	async onload() {
+		this.injectStyles();
 		await this.loadSettings();
 		await this.loadIndex();
 
@@ -263,6 +264,39 @@ export default class OnDemandCachePlugin extends Plugin {
 	onunload() {
 		this.renderComponent?.unload();
 		this.globalObserver?.disconnect();
+	}
+
+	/**
+	 * 注入插件样式：让“文件后缀列表”设置项垂直排列并占满整行，
+	 * 使输入框获得更大宽度，完整展示较长的后缀列表。
+	 */
+	private injectStyles() {
+		const styleId = "on-demand-cache-styles";
+		if (document.getElementById(styleId)) return;
+		const styleEl = document.createElement("style");
+		styleEl.id = styleId;
+		styleEl.textContent = `
+.on-demand-cache-ext-setting {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+}
+.on-demand-cache-ext-setting .setting-item-info {
+	width: 100%;
+}
+.on-demand-cache-ext-setting .setting-item-control {
+	width: 100%;
+	justify-content: flex-start;
+}
+.on-demand-cache-ext-setting textarea {
+	width: 100% !important;
+	max-width: none !important;
+	min-height: 140px;
+	resize: vertical;
+	font-family: var(--font-monospace);
+}
+`;
+		document.head.appendChild(styleEl);
 	}
 
 	// ==================== 全局 DOM 观察器（兜底替换） ====================
@@ -1255,7 +1289,7 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 			});
 
 		// 文件后缀列表
-		new Setting(containerEl)
+		const extSetting = new Setting(containerEl)
 			.setName(t("文件后缀列表", "File extensions"))
 			.setDesc(t("用逗号分隔，例如：png,jpg,mp4,pdf,zip", "Comma-separated, e.g. png,jpg,mp4,pdf,zip"))
 			.addTextArea((text) => {
@@ -1269,15 +1303,25 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 							.filter((s) => s.length > 0);
 						await this.plugin.saveSettings();
 					});
-				text.inputEl.rows = 6;
-				text.inputEl.cols = 90;
+				text.inputEl.rows = 7;
+				text.inputEl.cols = 120;
 				text.inputEl.setCssStyles({
-					// 固定较大宽度，避免被设置面板布局压缩，保证完整展示后缀列表
-					width: "min(100%, 560px)",
-					minWidth: "320px",
-					minHeight: "120px",
+					// 尽量占满可用宽度，避免被设置面板布局压缩
+					width: "min(100%, 900px)",
+					minWidth: "480px",
+					minHeight: "140px",
 				});
 			});
+		// 让该设置项垂直排列：名称/说明在上，输入框独占整行下方，从而获得更大宽度
+		extSetting.settingEl.setCssStyles({
+			display: "flex",
+			flexDirection: "column",
+			alignItems: "stretch",
+		});
+		extSetting.settingEl.addClass("on-demand-cache-ext-setting");
+		extSetting.controlEl.setCssStyles({
+			width: "100%",
+		});
 
 		// 最大大小
 		new Setting(containerEl)
