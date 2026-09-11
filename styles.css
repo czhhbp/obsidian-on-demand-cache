@@ -6,21 +6,27 @@
  */
 
 /*
- * "File extensions" setting: stack the label/description above the input so
- * the input can span the full row width and show the whole extension list.
+ * "File extensions" setting: stack the label/description above the input and
+ * let the input span the full width of the settings pane (not just the width
+ * of the control column), so the whole extension list is visible at a glance.
  */
 .on-demand-cache-ext-setting {
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
+	gap: var(--size-4-2);
 }
 
 .on-demand-cache-ext-setting .setting-item-info {
 	width: 100%;
+	margin-right: 0;
 }
 
 .on-demand-cache-ext-setting .setting-item-control {
 	width: 100%;
+	flex: 1 1 100%;
+	max-width: none;
+	margin-top: var(--size-4-2);
 	justify-content: flex-start;
 }
 
