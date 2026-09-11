@@ -1195,7 +1195,7 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 						name: t("清空缓存", "Clear cache"),
 						desc: t("删除所有缓存文件并重置缓存索引", "Delete all cache files and reset the cache index"),
 						action: () => {
-							void this.plugin.clearAllCache();
+							this.confirmClearCache();
 						},
 					},
 				],
@@ -1269,11 +1269,13 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 							.filter((s) => s.length > 0);
 						await this.plugin.saveSettings();
 					});
-				text.inputEl.rows = 4;
-				text.inputEl.cols = 60;
+				text.inputEl.rows = 6;
+				text.inputEl.cols = 90;
 				text.inputEl.setCssStyles({
-					width: "100%",
-					minHeight: "80px",
+					// 固定较大宽度，避免被设置面板布局压缩，保证完整展示后缀列表
+					width: "min(100%, 560px)",
+					minWidth: "320px",
+					minHeight: "120px",
 				});
 			});
 
@@ -1380,8 +1382,48 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 					.setButtonText(t("清空缓存", "Clear cache"))
 					.setCta()
 					.onClick(() => {
-						void this.plugin.clearAllCache();
+						this.confirmClearCache();
 					});
 			});
+	}
+
+	/**
+	 * 弹出二次确认对话框，确认后才执行清空缓存（不可撤销操作）。
+	 */
+	confirmClearCache(): void {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText(t("确认清空缓存？", "Clear cache?"));
+
+		modal.contentEl.createEl("p", {
+			text: t(
+				"此操作将删除所有已缓存的附件文件并重置缓存索引，且无法撤销。",
+				"This will delete all cached attachment files and reset the cache index. This action cannot be undone."
+			),
+		});
+		modal.contentEl.createEl("p", {
+			text: t(
+				"原始网络链接不受影响，下次打开笔记时会重新下载。",
+				"Your original links are not affected; files will be re-downloaded the next time you open a note."
+			),
+			cls: "setting-item-description",
+		});
+
+		const btnRow = modal.contentEl.createDiv({ cls: "modal-button-container" });
+
+		const cancelBtn = btnRow.createEl("button", {
+			text: t("取消", "Cancel"),
+		});
+		cancelBtn.onclick = () => modal.close();
+
+		const confirmBtn = btnRow.createEl("button", {
+			text: t("确认清空", "Clear cache"),
+			cls: "mod-warning",
+		});
+		confirmBtn.onclick = () => {
+			modal.close();
+			void this.plugin.clearAllCache();
+		};
+
+		modal.open();
 	}
 }
