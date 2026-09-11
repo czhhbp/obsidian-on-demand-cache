@@ -508,8 +508,13 @@ export default class OnDemandCachePlugin extends Plugin {
 	/** 启动插件诊断 */
 	private async logStartup() {
 		const adapter = this.app.vault.adapter;
+		// 防御式判断：移动端运行时可能未导出 FileSystemAdapter 类，
+		// 直接 `adapter instanceof FileSystemAdapter` 在 undefined 右操作数下会抛 TypeError。
+		const isFileSystem =
+			typeof FileSystemAdapter === "function" &&
+			adapter instanceof FileSystemAdapter;
 		this.logDiag("========== 插件启动诊断 ==========");
-		this.logDiag(`adapter 类型: ${adapter.constructor.name}（isFileSystem: ${adapter instanceof FileSystemAdapter}）`);
+		this.logDiag(`adapter 类型: ${adapter.constructor.name}（isFileSystem: ${isFileSystem}）`);
 		this.logDiag(`设置: enableRenderReplace=${this.settings.enableRenderReplace}, cacheFolder=${this.settings.cacheFolder}`);
 		this.logDiag(`索引条目数: ${this.index.entries.length}`);
 		for (const e of this.index.entries) {

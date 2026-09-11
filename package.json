@@ -1,6 +1,6 @@
 {
 	"name": "on-demand-cache",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"description": "Cache remote attachments on demand, serving local copies instead of network files while keeping original links unchanged.",
 	"main": "main.js",
 	"scripts": {
