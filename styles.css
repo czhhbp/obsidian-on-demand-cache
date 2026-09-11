@@ -1,0 +1,33 @@
+/*
+ * On-Demand Cache - plugin styles
+ *
+ * Obsidian automatically loads this file, so plugin styles must live here
+ * instead of being injected at runtime.
+ */
+
+/*
+ * "File extensions" setting: stack the label/description above the input so
+ * the input can span the full row width and show the whole extension list.
+ */
+.on-demand-cache-ext-setting {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.on-demand-cache-ext-setting .setting-item-info {
+	width: 100%;
+}
+
+.on-demand-cache-ext-setting .setting-item-control {
+	width: 100%;
+	justify-content: flex-start;
+}
+
+.on-demand-cache-ext-setting textarea.on-demand-cache-ext-input {
+	width: 100%;
+	max-width: none;
+	min-height: 140px;
+	resize: vertical;
+	font-family: var(--font-monospace);
+}
