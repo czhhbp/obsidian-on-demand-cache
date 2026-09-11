@@ -15,17 +15,20 @@
 	flex-direction: column;
 	align-items: stretch;
 	gap: var(--size-4-2);
+	flex-wrap: wrap;
 }
 
 .on-demand-cache-ext-setting .setting-item-info {
 	width: 100%;
+	max-width: none;
+	flex: 1 1 100%;
 	margin-right: 0;
 }
 
 .on-demand-cache-ext-setting .setting-item-control {
 	width: 100%;
-	flex: 1 1 100%;
 	max-width: none;
+	flex: 1 1 100%;
 	margin-top: var(--size-4-2);
 	justify-content: flex-start;
 }
@@ -33,7 +36,9 @@
 .on-demand-cache-ext-setting textarea.on-demand-cache-ext-input {
 	width: 100%;
 	max-width: none;
+	min-width: 100%;
 	min-height: 140px;
 	resize: vertical;
 	font-family: var(--font-monospace);
+	box-sizing: border-box;
 }
