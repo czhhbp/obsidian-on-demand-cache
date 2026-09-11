@@ -41,10 +41,18 @@ Most similar plugins **permanently rewrite** the links in your notes (changing `
 
 ## Installation
 
-Install from the Obsidian community directory:
+This plugin is available in the Obsidian community plugin store.
+
+**From the store (recommended):**
 
 1. Open Obsidian → Settings → Community plugins → Browse.
 2. Search for "On-Demand Cache" and click Install, then Enable.
+
+**Manual installation:**
+
+1. Download `main.js` and `manifest.json` from the [latest release](https://github.com/czhhbp/obsidian-on-demand-cache/releases).
+2. Place both files into a new folder `.obsidian/plugins/on-demand-cache/` in your vault.
+3. Enable "On-Demand Cache" in Obsidian → Settings → Community plugins → Installed plugins.
 
 ## Usage
 

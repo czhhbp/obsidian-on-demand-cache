@@ -41,10 +41,18 @@
 
 ## 安装
 
-从 Obsidian 社区插件商店安装：
+本插件已在 Obsidian 社区插件商店上架。
+
+**从商店安装（推荐）：**
 
 1. 打开 Obsidian → 设置 → 社区插件 → 浏览。
 2. 搜索 "On-Demand Cache"，点击安装，然后启用。
+
+**手动安装：**
+
+1. 从[最新 Release](https://github.com/czhhbp/obsidian-on-demand-cache/releases) 下载 `main.js` 和 `manifest.json`。
+2. 将两个文件放入 Vault 中的 `.obsidian/plugins/on-demand-cache/` 目录。
+3. 在 Obsidian → 设置 → 社区插件 → 已安装插件中启用 "On-Demand Cache"。
 
 ## 使用方法
 
