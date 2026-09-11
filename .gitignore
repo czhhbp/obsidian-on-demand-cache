@@ -11,3 +11,6 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Local plugin data (user settings, not for distribution)
+data.json
