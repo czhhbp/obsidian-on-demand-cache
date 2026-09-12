@@ -8,7 +8,7 @@ On-demand persistent cache for remote attachments (images, videos, audio, docume
 
 - **Original links preserved**: Network links (`https://...`) in your notes stay untouched. Syncing only syncs the link text, never the actual files.
 - **On-demand download**: Attachments are downloaded only when you open a note, not proactively in bulk.
-- **Persistent local cache**: Files are stored in the `cache/` folder (excluded from syncing, so they are never synced).
+- **Persistent local cache**: Files are stored in the `.cache` folder (excluded from syncing, so they are never synced).
 - **Serve local copy**: When reading/previewing, remote links are transparently replaced with local cache paths for offline access.
 - **Auto-fill on other devices**: When you open a note on another device, missing attachments are downloaded automatically.
 
@@ -28,7 +28,7 @@ Most similar plugins **permanently rewrite** the links in your notes (changing `
 
 2. **Cache decision**: Each link is checked against whether it should be cached — already cached, has a file extension, matches the whitelist/blacklist, and is within the size limit.
 
-3. **Download & dedup**: Files are downloaded via `requestUrl`, deduplicated by content hash (identical content is stored only once), written to the `cache/` folder, and recorded in the cache index `cache-index.json`.
+3. **Download & dedup**: Files are downloaded via `requestUrl`, deduplicated by content hash (identical content is stored only once), written to the `.cache` folder, and recorded in the cache index `cache-index.json`.
 
 4. **Render replacement**: A Markdown post-processor combined with a global `MutationObserver` replaces the `src` of `<img>` and other tags from the network link to a local `app://` resource path (`getResourcePath`) at render time, enabling offline display.
 
@@ -36,7 +36,7 @@ Most similar plugins **permanently rewrite** the links in your notes (changing `
 
 ### Key design decisions
 
-- **The cache folder must be a non-hidden directory**: Obsidian does not index hidden directories (those starting with `.`), which would make `app://` resource paths fail to load. Therefore the default is `cache/` (non-hidden).
+- **The cache folder may be a hidden directory**: `FileSystemAdapter.getResourcePath` encodes the absolute file path directly into an `app://` resource-proxy URL, which Obsidian's renderer resolves by reading the file from disk. It does not depend on the vault's file index, so a hidden directory such as `.cache` works fine. The default is therefore `.cache`.
 - **Render replacement never modifies the source**: Replacement only happens on the rendered DOM; the note file content is always unchanged.
 
 ## Installation
@@ -77,19 +77,19 @@ Configure in Obsidian Settings → Community plugins → On-Demand Cache (the UI
 | Filter mode | Whitelist / Blacklist |
 | File extensions | Comma-separated, e.g. `png,jpg,mp4,pdf,docx` |
 | Max size | In MB, 0 means no limit |
-| Cache folder | Default `cache` |
+| Cache folder | Default `.cache` |
 | Auto-clean | Toggle |
 | Use cache | Toggle |
 | Diagnostic logging | Enable for troubleshooting, off by default |
 
 ## Cache folder
 
-Cache files are stored in the `cache/` folder. This folder should be **excluded from syncing** so the actual files are never uploaded:
+Cache files are stored in the `.cache` folder. This folder should be **excluded from syncing** so the actual files are never uploaded:
 
-- **Git**: add `cache/` to your `.gitignore`.
-- **Other sync tools** (Obsidian Sync, Dropbox, OneDrive, etc.): configure the corresponding exclusion/ignore rule for the `cache/` folder.
+- **Git**: add `.cache/` to your `.gitignore`.
+- **Other sync tools** (Obsidian Sync, Dropbox, OneDrive, etc.): configure the corresponding exclusion/ignore rule for the `.cache/` folder.
 
-> Note: The cache folder **cannot** start with `.` (hidden directory). Obsidian does not index hidden directories, which would make `app://` resource paths fail to load images.
+> Note: The cache folder **may** start with `.` (a hidden directory). Because `app://` resource paths are resolved directly from disk rather than through the vault index, hidden directories such as `.cache` load images correctly.
 
 ## Supported link formats
 

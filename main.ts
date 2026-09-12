@@ -1,4 +1,4 @@
-import {
+﻿import {
 	App,
 	Plugin,
 	PluginSettingTab,
@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS: OnDemandCacheSettings = {
 		"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
 	],
 	maxFileSizeMB: 50,
-	cacheFolder: "cache",
+	cacheFolder: ".cache",
 	cleanupOnStartup: true,
 	enableRenderReplace: true,
 	debugMode: false,
@@ -975,9 +975,9 @@ export default class OnDemandCachePlugin extends Plugin {
 
 	/**
 	 * 获取缓存文件的本地资源路径。
-	 * 缓存目录必须是非隐藏目录（不以 . 开头），否则 Obsidian 不索引，
-	 * getResourcePath 生成的 app:// 地址将无法加载。
-	 * getResourcePath 返回的 URI 是官方推荐给浏览器引擎嵌入图片用的。
+	 * FileSystemAdapter.getResourcePath 会把磁盘绝对路径编码进 app:// 资源代理 URL，
+	 * Obsidian 渲染层据此直接读取本地文件，不依赖 vault 的文件索引，因此缓存目录
+	 * 可以是隐藏目录（如 .cache）。该 URI 是官方推荐给浏览器引擎嵌入图片用的。
 	 */
 	private getLocalResourcePath(filePath: string): string {
 		const adapter = this.app.vault.adapter;
@@ -1142,11 +1142,11 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 			},
 			{
 				name: t("缓存目录", "Cache folder"),
-				desc: t("缓存文件存放的文件夹（相对于 vault 根目录，建议避免同步此目录）", "Folder for cached files (relative to vault root; avoid syncing this folder)"),
+				desc: t("缓存文件存放的文件夹（相对于 vault 根目录）；隐藏目录（以 . 开头，如 .cache）同样可用，建议将其排除同步", "Folder for cached files (relative to vault root); hidden folders (starting with ., e.g. .cache) work too. Avoid syncing this folder"),
 				control: {
 					key: "cacheFolder",
 					type: "text",
-					placeholder: "cache",
+					placeholder: ".cache",
 				},
 			},
 			{
@@ -1226,7 +1226,7 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 			const num = parseFloat(String(value));
 			this.plugin.settings.maxFileSizeMB = isNaN(num) ? 0 : num;
 		} else if (key === "cacheFolder") {
-			this.plugin.settings.cacheFolder = String(value).trim() || "cache";
+			this.plugin.settings.cacheFolder = String(value).trim() || ".cache";
 		} else {
 			(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
 		}
@@ -1293,13 +1293,13 @@ class OnDemandCacheSettingTab extends PluginSettingTab {
 		// 缓存目录
 		new Setting(containerEl)
 			.setName(t("缓存目录", "Cache folder"))
-			.setDesc(t("缓存文件存放的文件夹（相对于 vault 根目录，建议避免同步此目录）", "Folder for cached files (relative to vault root; avoid syncing this folder)"))
+			.setDesc(t("缓存文件存放的文件夹（相对于 vault 根目录）；隐藏目录（以 . 开头，如 .cache）同样可用，建议将其排除同步", "Folder for cached files (relative to vault root); hidden folders (starting with ., e.g. .cache) work too. Avoid syncing this folder"))
 			.addText((text) => {
 				text
-					.setPlaceholder("cache")
+					.setPlaceholder(".cache")
 					.setValue(this.plugin.settings.cacheFolder)
 					.onChange(async (value) => {
-						this.plugin.settings.cacheFolder = value.trim() || "cache";
+						this.plugin.settings.cacheFolder = value.trim() || ".cache";
 						await this.plugin.saveSettings();
 					});
 			});
