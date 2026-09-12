@@ -4,6 +4,16 @@ On-demand persistent cache for remote attachments (images, videos, audio, docume
 
 [中文文档 / Chinese documentation](README.zh-CN.md)
 
+## Features
+
+- **📴 Offline reading of remote links**: Once an attachment has been cached, you can read the note **completely offline** — images, videos, audio, and documents load from the local cache with no network connection required. Remote links in your notes keep working even in airplane mode or on a flaky connection.
+- **🔗 Original links stay intact**: Notes are never rewritten. The `https://...` URLs remain exactly as you wrote them; the plugin only swaps in the local file at render time.
+- **⚡ On-demand download**: Attachments are fetched only when you open a note — no bulk pre-downloading, no wasted bandwidth.
+- **💾 Persistent local cache**: Cached files live in the `.cache` folder and stay there, so reopening a note is instant and works offline.
+- **🔁 Content-hash deduplication**: Identical files are stored only once, saving disk space.
+- **📱 Auto-fill across devices**: Open a note on another device and any missing attachments are downloaded automatically.
+- **🎨 Bilingual UI**: English and Chinese, switching automatically with Obsidian's language.
+
 ## How it works
 
 - **Original links preserved**: Network links (`https://...`) in your notes stay untouched. Syncing only syncs the link text, never the actual files.
@@ -58,9 +68,9 @@ This plugin is available in the Obsidian community plugin store.
 
 ### Automatic caching (default)
 
-**Cache on open**: When you open a note containing remote attachments, the plugin automatically downloads them to the local cache. They remain visible even after going offline.
+**Cache on open**: When you open a note containing remote attachments, the plugin automatically downloads them to the local cache. **After that, the note can be read fully offline** — the remote links resolve to the local cache instead of the network, so images and media display normally even with no internet connection.
 
-> ⚠️ **Important**: Caching is triggered **only when a note is opened**. If you insert a new remote attachment **while editing** (for example, pasting a network image link), the plugin will **not** cache it immediately. You need to **reopen the note** (or switch to another note and back) for the plugin to detect and cache the newly inserted attachment.
+> ⚠️ **Important**: Caching is triggered **only when a note is opened**. If you insert a new remote attachment **while editing** (for example, pasting a network image link), the plugin will **not** cache it immediately. You need to **reopen the note** (or switch to another note and back) for the plugin to detect and cache the newly inserted attachment. Until it is cached, that particular attachment still requires a network connection to display.
 
 ### Commands
 
